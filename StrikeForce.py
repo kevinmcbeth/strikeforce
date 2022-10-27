@@ -75,7 +75,43 @@ class StrikeForce(object):
         self.over = False
         self.initial_board = deepcopy(self.board)
         self.battle = False
+        self.my_units = None
+        self.initialize_units()
         
+    def initialize_units(self):
+        self.my_units = []
+        for i in range(15):
+            for j in range(9):
+                if self.initial_board[i][j] == self.current:
+                    self.my_units.append((i, j, 4))
+    def validate_movement_one_space(self, i, j, row_column):
+        #can move 2 in every direction except j
+        if abs(row_column[1] - j) >= 2:
+            return -1
+        elif abs(row_column[1] - j) + abs(row_column[0] - i) == 2:
+            return 0
+        else:
+            return - 1
+    def move_unit(self, i, j, row_column):
+        counter = 0
+        if self.validate_movement_one_space(i, j, row_column) != 0:
+            print("improper move, too many spaces")
+            return None
+        for unit in self.my_units:
+            
+            if unit[0] == i and unit[1] == j:
+                moves_remaining = unit[2]
+                print(moves_remaining)
+                if moves_remaining > 0:
+                    
+                    self.my_units[counter] = (row_column[0], row_column[1], moves_remaining - 1)
+                    
+                else:
+                    return None
+            counter += 1
+        print(self.my_units)
+        return 0 
+    
     def __getitem__(self, i):
         return self.board[i]  
     
@@ -145,6 +181,7 @@ class Frame(wx.Frame):
     def Reset(self, event):
         if self.strikeforce.battle == False:
             self.strikeforce.reset_board()
+            self.strikeforce.initialize_units()
             self.panel.Refresh()
             
     def EndTurn(self, event):
@@ -157,6 +194,7 @@ class Frame(wx.Frame):
             print("Start of Turn: {}".format(self.strikeforce.turns))
         self.strikeforce.set_unit(None)
         self.strikeforce.set_board()
+        self.strikeforce.initialize_units()
         self.panel.Refresh()   
 
     def get_position(self, x, y):
@@ -211,10 +249,14 @@ class Frame(wx.Frame):
             elif self.strikeforce[row_column[0]][row_column[1]] == BLANK:
                 if self.strikeforce.unit:
                     print("moving unit")
-                    self.strikeforce.set_board_position(self.strikeforce.unit[0], self.strikeforce.unit[1], BLANK)
-                    self.strikeforce.set_board_position(row_column[0],row_column[1], self.strikeforce.current)
-                    self.strikeforce.unit = row_column
-                    self.panel.Refresh()
+                    rc = self.strikeforce.move_unit(self.strikeforce.unit[0], self.strikeforce.unit[1], row_column)
+                    if rc == 0:
+                        self.strikeforce.set_board_position(self.strikeforce.unit[0], self.strikeforce.unit[1], BLANK)
+                        self.strikeforce.set_board_position(row_column[0],row_column[1], self.strikeforce.current)
+                        self.strikeforce.unit = row_column
+                        self.panel.Refresh()
+                    else:
+                        print("no moves remaining")
                     
     def Quit(self, event):
         self.Close()

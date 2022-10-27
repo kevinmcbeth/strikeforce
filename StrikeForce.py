@@ -2,6 +2,7 @@
 
 import wx
 from copy import deepcopy
+from math import floor
 RUSSIAN = -1
 BLANK = 0
 AMERICAN = 1
@@ -78,13 +79,14 @@ class StrikeForce(object):
 
 
 
-
 class Frame(wx.Frame):
     def __init__(self):
         style=wx.DEFAULT_FRAME_STYLE ^ wx.RESIZE_BORDER ^ wx.MAXIMIZE_BOX
         wx.Frame.__init__(self, None, -1, "Strike Force", style=style)
     
         self.panel = wx.Panel(self)
+        
+        self.panel.Bind(wx.EVT_LEFT_DOWN, self.DisplayBoxInfo)
         self.panel.Bind(wx.EVT_PAINT, self.Refresh)
         self.Newgame(None)
     
@@ -104,13 +106,44 @@ class Frame(wx.Frame):
      
         self.Show()
 
+    def DisplayBoxInfo(self, event):
 
+        # Calculate coordinate from window coordinate.
+        winx,winy = event.GetX(), event.GetY()
+        w,h = self.panel.GetSize()
+        x = winx / (w/9)
+        y = winy / (h/9)
+        column_index = floor(x)
+        if column_index % 2 == 0:
+            row_index = floor(y)*2
+            if row_index > 14:
+                return
+        else:
+            initial_position = y
+            if initial_position < 0.5 or initial_position > 7.5:
+                return
+            
+            elif initial_position < 1.5:
+                row_index = 1
+            elif initial_position < 2.5:
+                row_index = 3
+            elif initial_position < 3.5:
+                row_index = 5
+            elif initial_position < 4.5:
+                row_index = 7
+            elif initial_position < 5.5:
+                row_index = 9
+            elif initial_position < 6.5:
+                row_index = 11
+            elif initial_position < 7.5:
+                row_index = 13
+
+        print(self.strikeforce[row_index][column_index])
 
     def Quit(self, event):
         self.Close()
     
     def Newgame(self, event):
-        # Initialize reversi and Refresh screen.
         
         self.strikeforce = StrikeForce()
         print('refreshing')

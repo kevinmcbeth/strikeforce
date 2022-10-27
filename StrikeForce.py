@@ -3,12 +3,12 @@
 import wx
 from copy import deepcopy
 from math import floor
-RUSSIAN = -1
-BLANK = 0
-AMERICAN = 1
+RUSSIAN = "Russian"
+BLANK = "Empty"
+AMERICAN = "American"
 NULL_CELL = ' '
-FOREST = 'F'
-CITY = 'C'
+FOREST = 'Forest'
+CITY = 'City'
 RUSSIAN_START_CELLS = [
     (0, 8),
     (1 ,7),
@@ -48,7 +48,7 @@ def Notify(caption, message):
 
 class StrikeForce(object):
     def __init__(self):
-        self.board = [[0]* 9 for x in range(15)]
+        self.board = [[BLANK]* 9 for x in range(15)]
 
         for i in range(15):
             for j in range(9):
@@ -71,57 +71,104 @@ class StrikeForce(object):
             print(row)
         self.turns = 1              # Turn counter.
         self.current = RUSSIAN        # Current player.
-       
+        self.unit = None
         self.over = False
-
+        self.initial_board = deepcopy(self.board)
+        self.battle = False
+        
     def __getitem__(self, i):
-        return self.board[i]
+        return self.board[i]  
+    
+    def reset_board(self):
+        self.board = deepcopy(self.initial_board)
+    
+    def set_board(self):
+        self.initial_board = deepcopy(self.board)
+    
+    def set_current(self, value):
+        self.current = value
+        
+    def set_unit(self, value):
+        self.unit = value
+        
+    def set_turns(self, value):
+        self.turns = value
+        
 
-
-
+    
+    def set_board_position(self, i, j, value):
+        self.board[i][j] = value
+        
+    def check_city(self, row_column):
+        for row in CITY_CELLS:
+            if row == row_column:
+                print("City!!!")
+    def print_board(self):
+        for row in self.board:
+            print(row)
+            
 class Frame(wx.Frame):
     def __init__(self):
         style=wx.DEFAULT_FRAME_STYLE ^ wx.RESIZE_BORDER ^ wx.MAXIMIZE_BOX
         wx.Frame.__init__(self, None, -1, "Strike Force", style=style)
     
         self.panel = wx.Panel(self)
-        
         self.panel.Bind(wx.EVT_LEFT_DOWN, self.DisplayBoxInfo)
         self.panel.Bind(wx.EVT_PAINT, self.Refresh)
         self.Newgame(None)
     
         # Menubar.
         menu = wx.Menu()
-        menu.Append(1, "New game")
+        menu.Append(1, "Undo")
         menu.AppendSeparator()
-        menu.Append(2, "Quit")
+        menu.Append(2, "Reset")
+        menu.AppendSeparator()
+        menu.Append(3, "End Turn")
+        menu.AppendSeparator()
+        menu.Append(4, "New Game")
+        menu.AppendSeparator()
+        menu.Append(5, "Quit")
         menubar = wx.MenuBar()
         menubar.Append(menu, "Menu")
+        
         self.SetMenuBar(menubar)
-        self.Bind(wx.EVT_MENU, self.Newgame, id=1)
-        self.Bind(wx.EVT_MENU, self.Quit, id=2)
+        self.Bind(wx.EVT_MENU, self.Reset, id=2)
+        self.Bind(wx.EVT_MENU, self.EndTurn, id=3)
+        self.Bind(wx.EVT_MENU, self.Newgame, id=4)
+        self.Bind(wx.EVT_MENU, self.Quit, id=5)
     
         # Status bar.
         self.CreateStatusBar()
      
         self.Show()
+        
+    def Reset(self, event):
+        if self.strikeforce.battle == False:
+            self.strikeforce.reset_board()
+            self.panel.Refresh()
+            
+    def EndTurn(self, event):
+        
+        if self.strikeforce.current == RUSSIAN:
+            self.strikeforce.set_current(AMERICAN)
+        else:
+            self.strikeforce.set_current(RUSSIAN)
+            self.strikeforce.set_turns(self.strikeforce.turns + 1)
+            print("Start of Turn: {}".format(self.strikeforce.turns))
+        self.strikeforce.set_unit(None)
+        self.strikeforce.set_board()
+        self.panel.Refresh()   
 
-    def DisplayBoxInfo(self, event):
-
-        # Calculate coordinate from window coordinate.
-        winx,winy = event.GetX(), event.GetY()
-        w,h = self.panel.GetSize()
-        x = winx / (w/9)
-        y = winy / (h/9)
+    def get_position(self, x, y):
         column_index = floor(x)
         if column_index % 2 == 0:
             row_index = floor(y)*2
             if row_index > 14:
-                return
+                return None
         else:
             initial_position = y
             if initial_position < 0.5 or initial_position > 7.5:
-                return
+                return None
             
             elif initial_position < 1.5:
                 row_index = 1
@@ -137,9 +184,38 @@ class Frame(wx.Frame):
                 row_index = 11
             elif initial_position < 7.5:
                 row_index = 13
+        return (row_index, column_index)
 
-        print(self.strikeforce[row_index][column_index])
+    def DisplayBoxInfo(self, event):
 
+        # Calculate coordinate from window coordinate.
+        winx,winy = event.GetX(), event.GetY()
+        w,h = self.panel.GetSize()
+        print(winx, winy)
+        x = winx / (w/9)
+        y = winy / (h/9)
+        
+        row_column = self.get_position(x,y)
+        if row_column:
+            print(self.strikeforce[row_column[0]][row_column[1]])
+            self.strikeforce.check_city(row_column)
+            if self.strikeforce.current == self.strikeforce[
+                    row_column[0]][row_column[1]]:
+                if self.strikeforce.unit == row_column:
+                    
+                    print('{} infantry deselected'.format(self.strikeforce.current))
+                    self.strikeforce.unit = None
+                else:
+                    print('{} infantry selected'.format(self.strikeforce.current))
+                    self.strikeforce.unit = row_column
+            elif self.strikeforce[row_column[0]][row_column[1]] == BLANK:
+                if self.strikeforce.unit:
+                    print("moving unit")
+                    self.strikeforce.set_board_position(self.strikeforce.unit[0], self.strikeforce.unit[1], BLANK)
+                    self.strikeforce.set_board_position(row_column[0],row_column[1], self.strikeforce.current)
+                    self.strikeforce.unit = row_column
+                    self.panel.Refresh()
+                    
     def Quit(self, event):
         self.Close()
     
@@ -152,6 +228,7 @@ class Frame(wx.Frame):
 
     def Refresh(self, event):
         print('refreshing screen')
+        self.strikeforce.print_board()
         dc = wx.AutoBufferedPaintDCFactory(self.panel)
         dc = wx.GCDC(dc)
         w,h = self.panel.GetSize()
